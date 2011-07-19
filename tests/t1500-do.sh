@@ -41,12 +41,12 @@ test_todo_session 'basic do' <<EOF
 TODO: 7 of 7 tasks shown
 
 >>> todo.sh do 7,6
-7 x 2009-02-13 remove4
+7 x 2009-02-13.0440 remove4
 TODO: 7 marked as done.
-6 x 2009-02-13 remove3
+6 x 2009-02-13.0440 remove3
 TODO: 6 marked as done.
-x 2009-02-13 remove3
-x 2009-02-13 remove4
+x 2009-02-13.0440 remove3
+x 2009-02-13.0440 remove4
 TODO: $HOME/todo.txt archived.
 
 >>> todo.sh -p list
@@ -59,12 +59,12 @@ TODO: $HOME/todo.txt archived.
 TODO: 5 of 5 tasks shown
 
 >>> todo.sh do 5 4
-5 x 2009-02-13 remove2
+5 x 2009-02-13.0440 remove2
 TODO: 5 marked as done.
-4 x 2009-02-13 remove1
+4 x 2009-02-13.0440 remove1
 TODO: 4 marked as done.
-x 2009-02-13 remove1
-x 2009-02-13 remove2
+x 2009-02-13.0440 remove1
+x 2009-02-13.0440 remove2
 TODO: $HOME/todo.txt archived.
 
 >>> todo.sh -p list
@@ -77,7 +77,7 @@ EOF
 
 test_todo_session 'fail multiple do attempts' <<EOF
 >>> todo.sh -a do 3
-3 x 2009-02-13 stop
+3 x 2009-02-13.0440 stop
 TODO: 3 marked as done.
 
 >>> todo.sh -a do 3

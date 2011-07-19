@@ -94,41 +94,41 @@ EOF
 cat /dev/null > todo.txt
 test_todo_session 'replace handling prepended date on add' <<EOF
 >>> todo.sh -t add "new task"
-1 2009-02-13 new task
+1 2009-02-13.0440 new task
 TODO: 1 added.
 
 >>> todo.sh replace 1 this is just a new one
-1 2009-02-13 new task
+1 2009-02-13.0440 new task
 TODO: Replaced task with:
-1 2009-02-13 this is just a new one
+1 2009-02-13.0440 this is just a new one
 
->>> todo.sh replace 1 2010-07-04 this also has a new date
-1 2009-02-13 this is just a new one
+>>> todo.sh replace 1 2010-07-04.0440 this also has a new date
+1 2009-02-13.0440 this is just a new one
 TODO: Replaced task with:
-1 2010-07-04 this also has a new date
+1 2010-07-04.0440 this also has a new date
 EOF
 
 cat /dev/null > todo.txt
 test_todo_session 'replace handling priority and prepended date on add' <<EOF
 >>> todo.sh -t add "new task"
-1 2009-02-13 new task
+1 2009-02-13.0440 new task
 TODO: 1 added.
 
 >>> todo.sh pri 1 A
-1 (A) 2009-02-13 new task
+1 (A) 2009-02-13.0440 new task
 TODO: 1 prioritized (A).
 
 >>> todo.sh replace 1 this is just a new one
-1 (A) 2009-02-13 new task
+1 (A) 2009-02-13.0440 new task
 TODO: Replaced task with:
-1 (A) 2009-02-13 this is just a new one
+1 (A) 2009-02-13.0440 this is just a new one
 EOF
 
 test_todo_session 'replace with prepended date replaces existing date' <<EOF
->>> todo.sh replace 1 2010-07-04 this also has a new date
-1 (A) 2009-02-13 this is just a new one
+>>> todo.sh replace 1 2010-07-04.0430 this also has a new date
+1 (A) 2009-02-13.0440 this is just a new one
 TODO: Replaced task with:
-1 (A) 2010-07-04 this also has a new date
+1 (A) 2010-07-04.0430 this also has a new date
 EOF
 
 test_done
