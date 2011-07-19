@@ -1,7 +1,7 @@
 #! /bin/bash
 
 # === HEAVY LIFTING ===
-shopt -s extglob
+shopt -s extglob extquote
 
 # NOTE:  Todo.sh requires the .todo/config configuration file to run.
 # Place the .todo/config file in your home directory or use the -d option for a custom location.
@@ -58,7 +58,7 @@ shorthelp()
 		    listall|lsa [TERM...]
 		    listcon|lsc
 		    listfile|lf SRC [TERM...]
-		    listpri|lsp [PRIORITY]
+		    listpri|lsp [PRIORITY] [TERM...]
 		    listproj|lsprj
 		    move|mv ITEM# DEST [SRC]
 		    prepend|prep ITEM# "TEXT TO PREPEND"
@@ -143,10 +143,11 @@ help()
 		      sorted by priority with line  numbers.  If TERM specified, lists
 		      all lines that contain TERM in SRC file.
 
-		    listpri [PRIORITY]
-		    lsp [PRIORITY]
+		    listpri [PRIORITY] [TERM...]
+		    lsp [PRIORITY] [TERM...]
 		      Displays all tasks prioritized PRIORITY.
 		      If no PRIORITY specified, lists all prioritized tasks.
+		      If TERM specified, lists only prioritized tasks that contain TERM.
 
 		    listproj
 		    lsprj
@@ -267,16 +268,17 @@ cleanup()
 
 cleaninput()
 {
-    # Cleanup the input
-    # Replace newlines with spaces Always
-    input=`echo $input | tr -d '\r\n'`
+    # Replace CR and LF with space; tasks always comprise a single line.
+    input=${input//$'\r'/ }
+    input=${input//$'\n'/ }
 
-    action_regexp="^\(append\|app\|prepend\|prep\|replace\)$"
-
-    # Check which action we are being used in as this affects what cleaning we do
-    if [ `echo $action | grep -c $action_regexp` -eq 1 ]; then
-        # These actions use sed and & as the matched string so escape it
-        input=`echo $input | sed 's/\&/\\\&/g'`
+    if [ "$1" = "for sed" ]; then
+        # This action uses sed with "|" as the substitution separator, and & as
+        # the matched string; these must be escaped.
+        # Backslashes must be escaped, too, and before the other stuff.
+        input=${input//\\/\\\\}
+        input=${input//|/\\|}
+        input=${input//&/\\&}
     fi
 }
 
@@ -321,11 +323,11 @@ replaceOrPrepend()
   else
     input=$*
   fi
-  cleaninput $input
+  cleaninput "for sed"
 
   # Retrieve existing priority and prepended date
-  priority=$(sed -e "$item!d" -e $item's/^\(([A-Z]) \)\{0,1\}\([0-9]\{2,4\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{4\} \)\{0,1\}.*/\1/' "$TODO_FILE")
-  prepdate=$(sed -e "$item!d" -e $item's/^\(([A-Z]) \)\{0,1\}\([0-9]\{2,4\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{4\} \)\{0,1\}.*/\2/' "$TODO_FILE")
+  priority=$(sed -e "$item!d" -e $item's/^\((.) \)\{0,1\}\([0-9]\{2,4\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{4\} \)\{0,1\}.*/\1/' "$TODO_FILE")
+  prepdate=$(sed -e "$item!d" -e $item's/^\((.) \)\{0,1\}\([0-9]\{2,4\}-[0-9]\{2\}-[0-9]\{2\}\.[0-9]\{4\} \)\{0,1\}.*/\2/' "$TODO_FILE")
 
   if [ "$prepdate" -a "$action" = "replace" ] && [ "$(echo "$input"|sed -e 's/^\([0-9]\{2,4\}-[0-9]\{2\}-[0-9]\{2\}\)\{0,1\}.*/\1/')" ]; then
     # If the replaced text starts with a date, it will replace the existing
@@ -531,7 +533,7 @@ export SENTENCE_DELIMITERS=',.:;'
 }
 
 [ -e "$TODOTXT_CFG_FILE" ] || {
-    CFG_FILE_ALT=`dirname "$0"`"/todo.cfg"
+    CFG_FILE_ALT=$(dirname "$0")"/todo.cfg"
 
     if [ -e "$CFG_FILE_ALT" ]
     then
@@ -615,11 +617,11 @@ fi
 _addto() {
     file="$1"
     input="$2"
-    cleaninput $input
+    cleaninput
 
     if [[ $TODOTXT_DATE_ON_ADD = 1 ]]; then
-        now=`date '+%Y-%m-%d.%H%M'`
-        input="$now $input"
+        now=$(date '+%Y-%m-%d.%H%M')
+        input=$(echo "$input" | sed -e 's/^\(([A-Z]) \)\{0,1\}/\1'"$now /")
     fi
     echo "$input" >> "$file"
     if [ $TODOTXT_VERBOSE -gt 0 ]; then
@@ -750,7 +752,7 @@ _list() {
     fi
 }
 
-export -f _list die
+export -f cleaninput _list die
 
 # == HANDLE ACTION ==
 action=$( printf "%s\n" "$ACTION" | tr 'A-Z' 'a-z' )
@@ -842,7 +844,7 @@ case $action in
       [$SENTENCE_DELIMITERS]*)  appendspace=;;
       *)                        appendspace=" ";;
     esac
-    cleaninput $input
+    cleaninput "for sed"
 
     if sed -i.bak $item" s|^.*|&${appendspace}${input}|" "$TODO_FILE"; then
         if [ $TODOTXT_VERBOSE -gt 0 ]; then
@@ -916,15 +918,12 @@ case $action in
 
     # Split multiple depri's, if comma separated change to whitespace separated
     # Loop the 'depri' function for each item
-    for item in `echo $* | tr ',' ' '`; do
+    for item in $(echo $* | tr ',' ' '); do
 	[[ "$item" = +([0-9]) ]] || die "$errmsg"
 	todo=$(sed "$item!d" "$TODO_FILE")
 	[ -z "$todo" ] && die "TODO: No task $item."
 
-	sed -e $item"s/^(.) //" "$TODO_FILE" > /dev/null 2>&1
-
-	if [ "$?" -eq 0 ]; then
-	    #it's all good, continue
+	if sed "$item!d" "$TODO_FILE" | grep "^(.) " > /dev/null; then
 	    sed -i.bak -e $item"s/^(.) //" "$TODO_FILE"
 	    if [ $TODOTXT_VERBOSE -gt 0 ]; then
 		NEWTODO=$(sed "$item!d" "$TODO_FILE")
@@ -932,7 +931,7 @@ case $action in
 		echo "TODO: $item deprioritized."
 	    fi
 	else
-	    die "$errmsg"
+	    echo "TODO: $item is not prioritized."
 	fi
     done
     ;;
@@ -945,7 +944,7 @@ case $action in
 
     # Split multiple do's, if comma separated change to whitespace separated
     # Loop the 'do' function for each item
-    for item in `echo $* | tr ',' ' '`; do 
+    for item in $(echo $* | tr ',' ' '); do 
         [ -z "$item" ] && die "$errmsg"
         [[ "$item" = +([0-9]) ]] || die "$errmsg"
 
@@ -953,8 +952,9 @@ case $action in
         [ -z "$todo" ] && die "TODO: No task $item."
 
         # Check if this item has already been done
-        if [ `echo $todo | grep -c "^x "` -eq 0 ] ; then
-            now=`date '+%Y-%m-%d.%H%M'`
+        if [ "${todo:0:2}" != "x " ]; then
+            now=$(date '+%Y-%m-%d.%H%M')
+            now=$(date '+%Y-%m-%d')
             # remove priority once item is done
             sed -i.bak $item"s/^(.) //" "$TODO_FILE"
             sed -i.bak $item"s|^|x $now |" "$TODO_FILE"
@@ -964,7 +964,7 @@ case $action in
                 echo "TODO: $item marked as done."
 	    fi
         else
-            echo "$item is already marked done"
+            echo "TODO: $item is already marked done."
         fi
     done
 
@@ -1012,22 +1012,22 @@ case $action in
     ;;
 
 "listpri" | "lsp" )
-    shift ## was "listpri", new $1 is priority to list
+    shift ## was "listpri", new $1 is priority to list or first TERM
 
     if [ "${1:-}" ]
     then
         ## A priority was specified
         pri=$( printf "%s\n" "$1" | tr 'a-z' 'A-Z' | grep '^[A-Z]$' ) || {
             die "usage: $TODO_SH listpri PRIORITY
-            note: PRIORITY must a single letter from A to Z."
+note: PRIORITY must a single letter from A to Z."
         }
     else
         ## No priority specified; show all priority tasks
-        pri="[[:upper:]]"
+        pri="[A-Z]"
     fi
-    pri="($pri)"
 
-    _list "$TODO_FILE" "$pri"
+    post_filter_command="grep '^ *[0-9]\+ (${pri}) '"
+    _list "$TODO_FILE" "$@"
     ;;
 
 "move" | "mv" )
@@ -1089,18 +1089,23 @@ note: PRIORITY must be anywhere from A to Z."
     [[ "$item" = +([0-9]) ]] || die "$errmsg"
     [[ "$newpri" = @([A-Z]) ]] || die "$errmsg"
 
-    sed -e $item"s/^(.) //" -e $item"s/^/($newpri) /" "$TODO_FILE" > /dev/null 2>&1
-
-    if [ "$?" -eq 0 ]; then
-        #it's all good, continue
+    oldpri=$(sed -ne $item's/^(\(.\)) .*/\1/p' "$TODO_FILE")
+    if [ "$oldpri" != "$newpri" ]; then
         sed -i.bak -e $item"s/^(.) //" -e $item"s/^/($newpri) /" "$TODO_FILE"
-        if [ $TODOTXT_VERBOSE -gt 0 ]; then
-            NEWTODO=$(sed "$item!d" "$TODO_FILE")
-            echo "$item $NEWTODO"
-            echo "TODO: $item prioritized ($newpri)."
-	fi
-    else
-        die "$errmsg"
+    fi
+    if [ $TODOTXT_VERBOSE -gt 0 ]; then
+        NEWTODO=$(sed "$item!d" "$TODO_FILE")
+        echo "$item $NEWTODO"
+        if [ "$oldpri" != "$newpri" ]; then
+            if [ "$oldpri" ]; then
+                echo "TODO: $item re-prioritized from ($oldpri) to ($newpri)."
+            else
+                echo "TODO: $item prioritized ($newpri)."
+            fi
+        fi
+    fi
+    if [ "$oldpri" = "$newpri" ]; then
+        echo "TODO: $item already prioritized ($newpri)."
     fi
     ;;
 
