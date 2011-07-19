@@ -23,17 +23,17 @@ EOF
 
 test_todo_session 'cmd line first day with priority' <<EOF
 >>> todo.sh -pt add '(A) notice the daisies'
-2 (A) 2009-02-13 notice the daisies
+2 (A) 2009-02-13.0440 notice the daisies
 TODO: 2 added.
 
 >>> todo.sh -p list
-2 (A) 2009-02-13 notice the daisies
-1 2009-02-13 notice the daisies
+2 (A) 2009-02-13.0440 notice the daisies
+1 2009-02-13.0440 notice the daisies
 --
 TODO: 2 of 2 tasks shown
 
 >>> todo.sh -npf del 2
-2 (A) 2009-02-13 notice the daisies
+2 (A) 2009-02-13.0440 notice the daisies
 TODO: 2 deleted.
 EOF
 

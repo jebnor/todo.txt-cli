@@ -156,7 +156,7 @@ TODO: Replaced task with:
 1 (A) 2009-02-13.0440 this is just a new one
 EOF
 
-echo '(A) 2009-02-13 this is just a new one' > todo.txt
+echo '(A) 2009-02-13.0440 this is just a new one' > todo.txt
 test_todo_session 'replace with prepended date replaces existing date' <<EOF
 >>> todo.sh replace 1 2010-07-04.0430 this also has a new date
 1 (A) 2009-02-13.0440 this is just a new one
